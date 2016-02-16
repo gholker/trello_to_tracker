@@ -2,6 +2,8 @@ require 'csv'
 require 'json'
 require 'active_support/core_ext/date/conversions'
 
+CUSTOM_LABEL = 'name'
+
 # Maps from Trello member id to pivotal member name
 MEMBER_IDS = {
   # "3e8fc21bb4ab9f929a7832fce78170cb" => "Mario",
@@ -35,7 +37,7 @@ Dir.mkdir('trello')
 # Created at,Accepted at,Deadline,Requested By,Owned By,Description,Comment,Comment
 board['cards'].each_slice(100).each_with_index do |cards, page|
   CSV.open("trello/#{sluggify(board['name'])}_#{Date.today.to_s(:db)}_#{page}.csv", 'wb') do |csv|
-    csv << ['Story', 'Description', 'Owned By', 'Labels', 'Current State', 'Story Type']
+    csv << ['Story', 'Description', 'Owned By', 'Labels', 'Current State', 'Story Type', 'Estimate']
     cards.each do |card|
       next if card['closed']
       list = lists[card['idList']]
@@ -49,14 +51,15 @@ board['cards'].each_slice(100).each_with_index do |cards, page|
         else
           'unscheduled'
         end
-      description = card['desc'] if card["desc"].present?
+      description = card['desc'] if card["desc"] != nil && card["desc"].length > 0
       csv << [
-        card['name'],
-        [description, "Imported from #{card['url']}"].compact.join("\n"),
+        card['name'].gsub("\n",''),
+        [description, "Imported from #{card['url']}"].compact.join("\n").gsub("\n",''),
         MEMBER_IDS.fetch(card['idMembers'].first, ''),
-        list,
+        '%s, %s' % [CUSTOM_LABEL, list],
         current_state,
-        'feature'
+        'feature',
+        (current_state == 'unscheduled' ? '-1' : '0')
       ]
     end
   end
